@@ -6,7 +6,7 @@ Example server providing JWT tokens for [ChartMuseum](https://github.com/helm/ch
 
 ChartMuseum repo server currently only allows for HTTP basic authentication. Users would like a more robust authentication system, which allows them to specify which users have access to perform which actions (`helm fetch` vs `helm push`) against which repos. Please see https://github.com/helm/chartmuseum/issues/59 for more info.
 
-The way this will be handled is via JWT tokens, provided by some external authentication service. The tokens must contain a set of claims specific to ChartMusuem, indicating which actions (if any) the authenticated user is allowed to perform. 
+The way this will be handled is via JWT tokens, provided by some external authorization service. The tokens must contain a set of claims specific to ChartMusuem, indicating which actions (if any) the authenticated user is allowed to perform. 
 
 The exact format of this set of claims is still being determined. They might look something like the following:
 
@@ -33,7 +33,9 @@ The "latest" ChartMuseum image has the preliminary ability to be configured with
 
 This example stands up an instance of [cesanta/docker_auth](https://github.com/cesanta/docker_auth) configured with a private key, which provides signed tokens that can be used for making requests against a ChartMuseum instance which is configured for bearer auth with the corresponding public key.
 
-## Getting Started
+## Running the example
+
+### Getting started
 
 System requirements to run example:
 
@@ -48,7 +50,7 @@ docker-compose pull  # get the latest images
 docker-compose up
 ```
 
-## Requesting a Token
+### Requesting a token
 
 The auth server is currently configured to be wide open. Run the following command to obtain a signed JWT token:
 
@@ -62,7 +64,7 @@ Examining the token payload:
 echo $CM_TOKEN | cut -d "." -f 2 | base64 -D | jq
 ```
 
-## Making Requests
+### Making HTTP requests
 
 Once you have obtained a token form the auth server, send the token in HTTP headers when making requests to ChartMuseum:
 
@@ -89,3 +91,13 @@ helm push mychart/ chartmuseum
 helm repo update
 helm fetch chartmuseum/mychart
 ```
+
+## Helm 3
+
+The following diagram shows an example of how repo auth might work between Helm 3 and ChartMuseum 1.0:
+
+<img src="https://github.com/chartmuseum/auth-server-example/raw/master/helm_cli_repo_auth.png">
+
+The specifics behind the `helm login` command which will be introduced in Helm 3 is still to be determined.
+
+*"Auth flow" section in the image above stolen shamelessly from [Docker docs](https://docs.docker.com/registry/spec/auth/token/).*
