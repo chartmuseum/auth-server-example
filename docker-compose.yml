@@ -1,0 +1,29 @@
+version: "3"
+services:
+
+  authserver:
+    image: "cesanta/docker_auth:latest"
+    ports:
+      - "5001:5001"
+    command: "--v=2 --alsologtostderr -log_dir=/logs /config/docker_auth.yml"
+    volumes:
+      - "./config:/config:ro"
+      - "./data/authserver/logs:/logs:rw"
+      - "./data/authserver/tokendb:/tokendb:rw"
+
+  chartmuseum:
+    image: "chartmuseum/chartmuseum:latest"
+    ports:
+      - "8080:8080"
+    environment:
+      - "DEBUG=1"
+      - "STORAGE=local"
+      - "STORAGE_LOCAL_ROOTDIR=/charts"
+      - "BEARER_AUTH=1"
+      - "AUTH_REALM=https://localhost:5001/auth"
+      - "AUTH_SERVICE=chartmuseum"
+      - "AUTH_ISSUER=auth-server-example"
+      - "AUTH_CERT_PATH=/config/server.pem"
+    volumes:
+      - "./config:/config:ro"
+      - "./data/chartmuseum/charts:/charts:rw"
