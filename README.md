@@ -6,7 +6,7 @@ Example server providing JWT tokens for [ChartMuseum](https://github.com/helm/ch
 
 ChartMuseum repo server currently only allows for HTTP basic authentication. Users would like a more robust authentication system, which allows them to specify which users have access to perform which actions (`helm fetch` vs `helm push`) against which repos. Please see https://github.com/helm/chartmuseum/issues/59 for more info.
 
-The way this will be handled is via JWT tokens, provided by some external authentication service. The tokens must contain a set of claims specific to ChartMusuem, indicating which actions (if any) the authenticated user is allowed to perform. 
+The way this will be handled is via JWT tokens, provided by some external authorization service. The tokens must contain a set of claims specific to ChartMusuem, indicating which actions (if any) the authenticated user is allowed to perform. 
 
 The exact format of this set of claims is still being determined. They might look something like the following:
 
