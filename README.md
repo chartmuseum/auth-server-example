@@ -44,14 +44,14 @@ The output should contain the following:
 ```
 < HTTP/1.1 401 Unauthorized
 < Content-Type: application/json; charset=utf-8
-< Www-Authenticate: Bearer realm="http://localhost:5001/oauth2/token",service="localhost:5001",scope="artifact-repository:org1/repo1:pull"
+< Www-Authenticate: Bearer realm="http://localhost:5001/oauth/token",service="localhost:5001",scope="artifact-repository:org1/repo1:pull"
 ```
 
 The result is an expected `401 Unauthorized`.
 
 Look at the contents of the `Www-Authenticate` response header. You will see that `realm` and `scope` fields are defined.
 
-`realm` -> `http://localhost:5001/oauth2/token`
+`realm` -> `http://localhost:5001/oauth/token`
 
 `scope` -> `artifact-repository:org1/repo1:pull`
 
