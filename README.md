@@ -142,7 +142,7 @@ export HELM_REPO_USE_HTTP="true"        # needed if repo running over http vs ht
 export HELM_REPO_ACCESS_TOKEN="$TOKEN"  # token created above
 
 # Add the repo with cm protocol
-helm repo add chartmuseum cm://localhost:8080
+helm repo add chartmuseum cm://localhost:8080/org1/repo1
 
 # Run repo-related helm commands
 helm push mychart/ chartmuseum
@@ -150,16 +150,16 @@ helm repo update
 helm fetch chartmuseum/mychart
 ```
 
-The `scope` to use when requesting a token to perform `push` action (see step #2) will look like the following:
+The `scope` to use when requesting a token to perform `pull` and `push` actions (see step #2) will look like the following:
 
 ```
-artifact-repository:repo:push
+artifact-repository:org1/repo1:pull,push
 ```
 
 The suported scope format looks like:
 
 ```
-artifact-repository:<namespace>:<action>
+artifact-repository:<namespace>:<action[s]>
 ```
 
 where "repo" is the default, single-tenant `<namespace>`.
