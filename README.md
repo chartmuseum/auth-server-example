@@ -138,7 +138,7 @@ However, if you are using the [helm-push](https://github.com/chartmuseum/helm-pu
 
 ```
 # export necessary vars
-export HELM_REPO_USE_HTTP="true"           # needed if repo running over http vs https
+export HELM_REPO_USE_HTTP="true"        # needed if repo running over http vs https
 export HELM_REPO_ACCESS_TOKEN="$TOKEN"  # token created above
 
 # Add the repo with cm protocol
