@@ -2,38 +2,14 @@
 
 Example server providing JWT tokens for [ChartMuseum](https://github.com/helm/chartmuseum) auth.
 
-## Background
-
-ChartMuseum repo server currently only allows for HTTP basic authentication. Users would like a more robust authentication system, which allows them to specify which users have access to perform which actions (`helm fetch` vs `helm push`) against which repos. Please see https://github.com/helm/chartmuseum/issues/59 for more info.
-
-The way this will be handled is via JWT tokens, provided by some external authorization service. The tokens must contain a set of claims specific to ChartMusuem, indicating which actions (if any) the authenticated user is allowed to perform. 
-
-The exact format of this set of claims is still being determined. They might look something like the following:
-
-*Single-tenant:*
-
-```
-"access": [
-    "push"
-]
-```
-
-*Multi-tenant:*
-
-```
-"access": [
-    "myorg/myrepo:push",
-    "myfriendsorg/myfriendsrepo:pull"
-]
-```
-
-ChartMuseum server will be configured with a public key that will verify the authenticity of the token provided (which will be sent by HTTP clients in the `Authorization` header). If the token is valid, ChartMuseum will either allow or deny the action based on then token claims.
-
-The "latest" ChartMuseum image has the preliminary ability to be configured with a public key and to verify JWT tokens (thank you @zachpuck). For now, the token is only verified (no inspection of claims). The next steps are to define a Chartmuseum-specific claimset and inspect the claims to determine a given user's access level.
-
-This example stands up an instance of [cesanta/docker_auth](https://github.com/cesanta/docker_auth) configured with a private key, which provides signed tokens that can be used for making requests against a ChartMuseum instance which is configured for bearer auth with the corresponding public key.
 
 ## Running the example
+
+### Source Code
+
+Check out the source code for the auth server [here](authserver/main.go).
+
+This makes use of the [chartmuseum/auth](https://github.com/chartmuseum/auth) Go library in order to generate valid JWT tokens.
 
 ### Getting started
 
@@ -49,30 +25,112 @@ In the root of this repo, run the following commands to start both the auth serv
 docker-compose pull  # get the latest images
 docker-compose up
 ```
+### Steps
 
-### Requesting a token
+#### Step 1: Making an unauthenticated request to ChartMuseum
 
-The auth server is currently configured to be wide open. Run the following command to obtain a signed JWT token:
+ChartMuseum server is configured to use bearer auth.
+
+In order to access protected resources, a JWT token must be supplied in the `Authorization` header that indicates access to perform a specific action against a specific resource.
+
+However, in order to obtain the `scope` required to obtain a token, we first make an unautheticated request.
+
+For example:
+```
+curl -v http://localhost:8080/org1/repo1/index.yaml
+```
+
+The output should contain the following:
+```
+< HTTP/1.1 401 Unauthorized
+< Content-Type: application/json; charset=utf-8
+< Www-Authenticate: Bearer realm="http://localhost:5001/oauth2/token",service="localhost:5001",scope="artifact-repository:org1/repo1:pull"
+```
+
+The result is an expected `401 Unauthorized`.
+
+Look at the contents of the `Www-Authenticate` response header. You will see that `realm` and `scope` fields are defined.
+
+`realm` -> `http://localhost:5001/oauth2/token`
+
+`scope` -> `artifact-repository:org1/repo1:pull`
+
+These values will be used in the next step.
+
+#### Step 2: Requesting a token from the auth server
+
+After obtaining the `realm` and `scope`, we make a request to the auth server (`realm`) to obtain a token.
+
+Run the following:
 
 ```
-export CM_TOKEN="$(curl -sk https://localhost:5001/auth | jq -r '.token')"
+REALM="http://localhost:5001/oauth/token"
+SCOPE="artifact-repository:org1/repo1:pull"
+
+curl -s -X POST -H "Authorization: Bearer MASTERKEY" \
+  "$REALM?grant_type=client_credentials&scope=$SCOPE" | jq .
 ```
 
-Examining the token payload:
+*Note: "MASTERKEY" is a hardcoded token in the auth server which is required to authenticate.*
+
+This should output something like the following:
 
 ```
-echo $CM_TOKEN | cut -d "." -f 2 | base64 -D | jq
+{
+  "access_token": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE1NDM5OTU3NzAsImlhdCI6MTU0Mzk5NTQ3MCwiYWNjZXNzIjpbeyJ0eXBlIjoiYXJ0aWZhY3QtcmVwb3NpdG9yeSIsIm5hbWUiOiJvcmcxL3JlcG8xIiwiYWN0aW9ucyI6WyJwdWxsIl19XX0.0Ajgwy5Yhl_HwF3yKoggicpxCiFTffiGcWVxhttR_SU3czn2WogkRazXAAQE2CuIzganw5u5WDuZIBPC2RucP8KT5uKvKDiakDsVYHMACCDjpTotAWamZF2MFCTpXzhpCLkcv_dgGHnInGV_VYJj1xhD6B4ksuxMpDflLCNPqV4GyTxdrIplRxurePNLs5yLKngMXs42eAsD44FGDSLbW65RLM7QFZaUvwlbcst0g9KsVxN4NJ4uIPS-dC0HOvdf6bw2E_GTbpTcpzgn5gMXKzKGFxTi8Tch-NA9t6jghsEDUk3WYJGH1Ko0-xI8XpjYf6l4wQ6_Yg2dGrMBxFqfmQ"
+}
 ```
 
-### Making HTTP requests
+`access_token` is a signed JWT token that indicates access to perform the action `pull` on the `org1/repo1` namespace. It is set to expire in 5 minutes.
 
-Once you have obtained a token form the auth server, send the token in HTTP headers when making requests to ChartMuseum:
+You can decode this token on [https://jwt.io](http://jwt.io/#id_token=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE1NDM5OTU3NzAsImlhdCI6MTU0Mzk5NTQ3MCwiYWNjZXNzIjpbeyJ0eXBlIjoiYXJ0aWZhY3QtcmVwb3NpdG9yeSIsIm5hbWUiOiJvcmcxL3JlcG8xIiwiYWN0aW9ucyI6WyJwdWxsIl19XX0.0Ajgwy5Yhl_HwF3yKoggicpxCiFTffiGcWVxhttR_SU3czn2WogkRazXAAQE2CuIzganw5u5WDuZIBPC2RucP8KT5uKvKDiakDsVYHMACCDjpTotAWamZF2MFCTpXzhpCLkcv_dgGHnInGV_VYJj1xhD6B4ksuxMpDflLCNPqV4GyTxdrIplRxurePNLs5yLKngMXs42eAsD44FGDSLbW65RLM7QFZaUvwlbcst0g9KsVxN4NJ4uIPS-dC0HOvdf6bw2E_GTbpTcpzgn5gMXKzKGFxTi8Tch-NA9t6jghsEDUk3WYJGH1Ko0-xI8XpjYf6l4wQ6_Yg2dGrMBxFqfmQ) or with something like [jwt-cli](https://github.com/mike-engel/jwt-cli).
 
-*Requesting the repository index:*
+If you examine the token payload, it will resemble the following:
 
 ```
-curl -v -H "Authorization: Bearer $CM_TOKEN" http://localhost:8080/index.yaml
+{
+  "exp": 1543995770,
+  "iat": 1543995470,
+  "access": [
+    {
+      "type": "artifact-repository",
+      "name": "org1/repo1",
+      "actions": [
+        "pull"
+      ]
+    }
+  ]
+}
 ```
+
+#### Step 3. Making an authenticated request to ChartMuseum
+
+Once you have obtained a token from the auth server, simply retry the original request, this time sending the token in the `Authorization` header:
+
+```
+TOKEN="eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE1NDM5OTU3NzAsImlhdCI6MTU0Mzk5NTQ3MCwiYWNjZXNzIjpbeyJ0eXBlIjoiYXJ0aWZhY3QtcmVwb3NpdG9yeSIsIm5hbWUiOiJvcmcxL3JlcG8xIiwiYWN0aW9ucyI6WyJwdWxsIl19XX0.0Ajgwy5Yhl_HwF3yKoggicpxCiFTffiGcWVxhttR_SU3czn2WogkRazXAAQE2CuIzganw5u5WDuZIBPC2RucP8KT5uKvKDiakDsVYHMACCDjpTotAWamZF2MFCTpXzhpCLkcv_dgGHnInGV_VYJj1xhD6B4ksuxMpDflLCNPqV4GyTxdrIplRxurePNLs5yLKngMXs42eAsD44FGDSLbW65RLM7QFZaUvwlbcst0g9KsVxN4NJ4uIPS-dC0HOvdf6bw2E_GTbpTcpzgn5gMXKzKGFxTi8Tch-NA9t6jghsEDUk3WYJGH1Ko0-xI8XpjYf6l4wQ6_Yg2dGrMBxFqfmQ"
+
+curl -v -H "Authorization: Bearer $TOKEN" \
+  http://localhost:8080/org1/repo1/index.yaml
+```
+
+This should result in a `200 OK` and return the repo index contents as expected:
+
+```
+apiVersion: v1
+entries:
+  mychart:
+  - created: "2018-12-05T06:57:46Z"
+    digest: 159ba395ef891a90339f5d8a6ff964fb38265ec24a2e1d09fe6c390cda75b17c
+    name: mychart
+    urls:
+    - charts/mychart-0.1.0.tgz
+    version: 0.1.0
+generated: "2018-12-05T07:04:40Z"
+serverInfo: {}
+```
+
+## Using with helm-push
 
 There is currently no way to pass this token via Helm CLI.
 
@@ -81,7 +139,7 @@ However, if you are using the [helm-push](https://github.com/chartmuseum/helm-pu
 ```
 # export necessary vars
 export HELM_REPO_USE_HTTP="true"           # needed if repo running over http vs https
-export HELM_REPO_ACCESS_TOKEN="$CM_TOKEN"  # token created above
+export HELM_REPO_ACCESS_TOKEN="$TOKEN"  # token created above
 
 # Add the repo with cm protocol
 helm repo add chartmuseum cm://localhost:8080
@@ -91,6 +149,20 @@ helm push mychart/ chartmuseum
 helm repo update
 helm fetch chartmuseum/mychart
 ```
+
+The `scope` to use when requesting a token to perform `push` action (see step #2) will look like the following:
+
+```
+artifact-repository:repo:push
+```
+
+The suported scope format looks like:
+
+```
+artifact-repository:<namespace>:<action>
+```
+
+where "repo" is the default, single-tenant `<namespace>`.
 
 ## Helm 3
 
