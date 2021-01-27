@@ -27,4 +27,3 @@ services:
       - "AUTH_CERT_PATH=/config/server.pem"
     volumes:
       - "./config:/config:ro"
-      - "./charts:/charts:rw"
