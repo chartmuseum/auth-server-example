@@ -1,6 +1,6 @@
 FROM golang:1.11-alpine AS build-env
 RUN apk --no-cache add git
-ADD . /go/src/app
+ADD authserver /go/src/app
 RUN cd /go/src/app && go get -v 
 RUN cd /go/src/app && go build -o goapp
 
