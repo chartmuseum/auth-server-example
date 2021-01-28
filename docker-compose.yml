@@ -6,6 +6,8 @@ services:
     ports:
       - "5001:5001"
     command: "go run main.go"
+    environment:
+      - "AUTH_SERVER_MASTER_KEY=mypassword"
     working_dir: "/go/src/github.com/chartmuseum/auth-server-example/authserver"
     volumes:
       - "./authserver:/go/src/github.com/chartmuseum/auth-server-example/authserver:ro"
@@ -27,4 +29,3 @@ services:
       - "AUTH_CERT_PATH=/config/server.pem"
     volumes:
       - "./config:/config:ro"
-      - "./charts:/charts:rw"

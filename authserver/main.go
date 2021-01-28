@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"time"
+    "os"
 
 	cmAuth "github.com/chartmuseum/auth"
 	"github.com/gin-gonic/gin"
@@ -13,7 +14,7 @@ var (
 	tokenGenerator    *cmAuth.TokenGenerator
 	tokenExpiry       = time.Minute * 5
 	requiredGrantType = "client_credentials"
-	masterAccessKey   = "MASTERKEY"
+	masterAccessKey   = os.Getenv("AUTH_SERVER_MASTER_KEY")
 )
 
 func oauthTokenHandler(c *gin.Context) {
@@ -55,7 +56,7 @@ func oauthTokenHandler(c *gin.Context) {
 func main() {
 	var err error
 	tokenGenerator, err = cmAuth.NewTokenGenerator(&cmAuth.TokenGeneratorOptions{
-		PrivateKeyPath: "../config/server.key",
+		PrivateKeyPath: "./config/server.key",
 	})
 	if err != nil {
 		panic(err)
