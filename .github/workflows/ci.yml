@@ -36,7 +36,7 @@ jobs:
           password: ${{ secrets.DOCKER_PASSWORD }}
           repository: craftech/chartmuseum-auth-server
           dockerfile: Dockerfile
-          tags: ${GITHUB_REF##*/}
+          tag_with_ref: true
 
       - uses: craftech-io/slack-action@v1
         with:
